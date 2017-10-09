@@ -64,47 +64,6 @@ class PyAppSpider(object):
 
         return response
 
-    ###### Helper Functions ######
-    def get_engagement_uri(self, engagement_id):
-        """Returns the AppSpider Enterprise API URI for an engagement.
-
-        :param engagement_id: Id of the engagement
-
-        """
-        return "/api/" + self.api_version + "/engagements/" + str(engagement_id) + "/"
-
-    def get_product_uri(self, product_id):
-        """Returns the AppSpider Enterprise API URI for a product.
-
-        :param product_id: Id of the product
-
-        """
-        return "/api/" + self.api_version + "/products/" + str(product_id) + "/"
-
-    def get_test_uri(self, test_id):
-        """Returns the AppSpider Enterprise API URI for a test.
-
-        :param test_id: Id of the test
-
-        """
-        return "/api/" + self.api_version + "/tests/" + str(test_id) + "/"
-
-    def version_url(self):
-        """Returns the AppSpider Enterprise API version.
-
-        """
-        return self.api_version
-
-    def get_id_from_url(self, url):
-        """Returns the ID from the AppSpider Enterprise API.
-
-        :param url: URL returned by the API
-
-        """
-        url = url.split('/')
-        return url[len(url)-2]
-
-
     ###### Scan API #######
     def get_scans(self):
         """Retrieves the list of scans.
@@ -127,7 +86,7 @@ class PyAppSpider(object):
         if username:
             params['configName'] = configName
 
-        return self._request('POST', "Scan/GetScans/")
+        return self._request('POST', "Scan/GetScans/", params)
 
     def cancel_scan(self, scanId):
         """Cancels "Starting" or "Waiting for Cloud" scan
@@ -139,7 +98,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/CancelScan")
+        return self._request('POST', "/Scan/CancelScan", params)
 
     def pause_scan(self, scanId):
         """Pauses a running scan
@@ -151,7 +110,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/PauseScan")
+        return self._request('POST', "/Scan/PauseScan", params)
 
     def pause_all_scans(self):
         """Pauses all running scans
@@ -171,7 +130,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/ResumeScan")
+        return self._request('POST', "/Scan/ResumeScan", params)
 
     def resume_all_scans(self):
         """Resumes all scans
@@ -191,7 +150,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/StopScan")
+        return self._request('POST', "/Scan/StopScan", params)
 
     def stop_all_scans(self):
         """Stops all scans
@@ -211,7 +170,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('GET', "Scan/GetScanStatus")
+        return self._request('GET', "Scan/GetScanStatus", params)
 
     def is_scan_active(self):
         """Checks to see if the specified scan is active
@@ -223,7 +182,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('GET', "Scan/IsScanActive")
+        return self._request('GET', "Scan/IsScanActive", params)
 
     def is_scan_finished(self):
         """Checks to see if the specified scan is finished
@@ -235,7 +194,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('GET', "Scan/IsScanFinished")
+        return self._request('GET', "Scan/IsScanFinished", params)
 
     def scan_has_report(self):
         """Checks to see if the specified scan has a report
@@ -247,7 +206,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('GET', "Scan/HasReport")
+        return self._request('GET', "Scan/HasReport", params)
 
     ###### Finding API #######
     def get_vulnerabilities(self):
@@ -293,7 +252,7 @@ class PyAppSpider(object):
         if doNotUpdate:
             params['doNotUpdate'] = doNotUpdate
 
-        return self._request('POST', "Engine/SaveEngine")
+        return self._request('POST', "Engine/SaveEngine", params)
 
     def delete_engine(self, ids):
         """Scan engine IDs
@@ -301,8 +260,9 @@ class PyAppSpider(object):
         :param ids: Scan Engine ID (guid)
 
         """
+        params['ids'] = ids
 
-        return self._request('POST', "Engine/DeleteEngine")
+        return self._request('POST', "Engine/DeleteEngine", params)
 
     ###### Scan Engine Operations #######
     def get_all_engine_groups(self):
@@ -342,7 +302,7 @@ class PyAppSpider(object):
         if monitoring:
             params['monitoring'] = monitoring
 
-        return self._request('POST', "EngineGroup/SaveEngineGroup")
+        return self._request('POST', "EngineGroup/SaveEngineGroup", params)
 
     def delete_engine_group(self, ids):
         """Deletes a scan engine group
@@ -355,7 +315,7 @@ class PyAppSpider(object):
 
         params['ids'] = ids
 
-        return self._request('POST', "EngineGroup/DeleteEngineGroup")
+        return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
 
     def delete_engine_group(self, ids):
         """Deletes a scan engine group
@@ -368,7 +328,7 @@ class PyAppSpider(object):
 
         params['ids'] = ids
 
-        return self._request('POST', "EngineGroup/DeleteEngineGroup")
+        return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
 
     def add_engine_to_group(self, groupId, engineId):
         """Adds a scan engine to a scan engine group
@@ -383,7 +343,7 @@ class PyAppSpider(object):
         params['groupId'] = groupId
         params['engineId'] = engineId
 
-        return self._request('POST', "EngineGroup/AddEngineToGroup")
+        return self._request('POST', "EngineGroup/AddEngineToGroup", params)
 
     def delete_engine_from_group(self, groupId, engineId):
         """Deletes scan engine from scan engine group
@@ -398,7 +358,7 @@ class PyAppSpider(object):
         params['groupId'] = groupId
         params['engineId'] = engineId
 
-        return self._request('POST', "EngineGroup/DeleteEngineFromGroup")
+        return self._request('POST', "EngineGroup/DeleteEngineFromGroup", params)
 
     ###### Report Management #######
     def import_standard_report(self, reportData, scanId=None, configId=None):
@@ -420,7 +380,7 @@ class PyAppSpider(object):
         if configId:
             params['configId'] = configId
 
-        return self._request('POST', "Report/ImportStandardReport")
+        return self._request('POST', "Report/ImportStandardReport", params)
 
     def import_checkmarx_report(self, scanId, file):
         """Creates a new scan in the scan history or updates the report for the specified scan
@@ -435,7 +395,7 @@ class PyAppSpider(object):
         params['scanId'] = scanId
         params['file'] = file
 
-        return self._request('POST', "Report/ImportCheckmarxReport")
+        return self._request('POST', "Report/ImportCheckmarxReport", params)
 
     def import_checkmarx_report(self, scanId):
         """Gets VulnerabilitiesSummary.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report
@@ -448,7 +408,7 @@ class PyAppSpider(object):
 
         params['scanId'] = scanId
 
-        return self._request('GET', "Report/GetVulnerabilitiesSummaryXml")
+        return self._request('GET', "Report/GetVulnerabilitiesSummaryXml", params)
 
     def import_checkmarx_report(self, scanId):
         """Gets VulnerabilitiesSummary.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report
@@ -461,7 +421,7 @@ class PyAppSpider(object):
 
         params['scanId'] = scanId
 
-        return self._request('GET', "Report/GetCrawledLinksXml")
+        return self._request('GET', "Report/GetCrawledLinksXml", params)
 
     ###### Scan Configuration Operations #######
     def import_standard_report(self, xml, name, engineGroupId, id=None, defendEnabled=None, monitoring=None, monitoringDelay=None, monitoringTriggerScan=None, isApproveRequired=None):
@@ -503,7 +463,7 @@ class PyAppSpider(object):
         if isApproveRequired:
             params['isApproveRequired'] = monitoring
 
-        return self._request('POST', "Config/SaveConfig")
+        return self._request('POST', "Config/SaveConfig", params)
 
     def get_config(self, id):
         """Retrieves scan config for the client
@@ -516,7 +476,7 @@ class PyAppSpider(object):
 
         params['id'] = id
 
-        return self._request('POST', "Config/GetConfig")
+        return self._request('POST', "Config/GetConfig", params)
 
     def get_attachment(self, configId, fileName, fileType):
         """Retrieves auxiliary files (such as macro, traffic recording, etc), referenced in the scan configuration
@@ -533,21 +493,62 @@ class PyAppSpider(object):
         params['fileName'] = fileName
         params['fileType'] = fileType
 
-        return self._request('POST', "Config/GetAttachment")
+        return self._request('POST', "Config/GetAttachment", params)
 
-    def get_attachments(self, configId):
-        """Retrieves auxiliary files (such as macro, traffic recording, etc), referenced in the scan configuration
+    ###### Blackout Operations Operations #######
+    def get_blackouts(self):
+        """Retrieves the blackout list for the client
 
-        :param configId: Scan config ID
+
+        """
+
+        return self._request('GET', "Blackout/GetBlackouts")
+
+    def save_blackout(self, name, startTime, targetHost, id=None, stopTime=None, isRecurring=None, recurrence=None):
+        """Creates or updates a blackout window
+
+        :param name: Blackout name. Name should be unique in the client
+        :param startTime: Date and time the blackout starts
+        :param targetHost: Name of host for the blackout
+        :param id: Blackout id. Update blackout if id provided and create new blackout if not provided
+        :param stopTime: Date and time the blackout ends
+        :param isRecurring: Marks the blackout as a reoccurring event
+        :param recurrence: Sets the recurrence frequency. See the section "Recurrences Explained" for more detail.
 
         """
 
         params  = {}
 
-        params['configId'] = configId
+        params['name'] = name
+        params['startTime'] = startTime
+        params['targetHost'] = targetHost
 
+        if id:
+            params['id'] = id
 
-        return self._request('POST', "Config/GetAttachments")
+        if stopTime:
+            params['stopTime'] = id
+
+        if isRecurring:
+            params['isRecurring'] = id
+
+        if recurrence:
+            params['recurrence'] = id
+
+        return self._request('POST', "Blackout/SaveBlackout", params)
+
+    def delete_blackouts(self, blackoutIds):
+        """Removes a blackout window
+
+        :param blackoutIds: Scan config ID
+
+        """
+
+        params  = {}
+
+        params['blackoutIds'] = blackoutIds
+
+        return self._request('POST', "Blackout/DeleteBlackouts", params)
 
 
     # Utility
