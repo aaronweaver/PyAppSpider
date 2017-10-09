@@ -463,6 +463,93 @@ class PyAppSpider(object):
 
         return self._request('GET', "Report/GetCrawledLinksXml")
 
+    ###### Scan Configuration Operations #######
+    def import_standard_report(self, xml, name, engineGroupId, id=None, defendEnabled=None, monitoring=None, monitoringDelay=None, monitoringTriggerScan=None, isApproveRequired=None):
+        """Creates a new scan configuration
+
+        :param id: If id not provided new config will be created. If id provided config update performed.
+        :param xml: Scan config xml file. Config name should be unique in the client.
+        :param defendEnabled: AppSpider Defend enabled
+        :param monitoring: Monitoring scanning enabled
+        :param monitoringDelay: Delay between monitoring scans in hours. Possible values are 1 (hour), 24 (day), 168 (week), 720 (month)
+        :param monitoringTriggerScan: Monitoring scan triggers attack scan if changes found
+        :param name: Config name
+        :param engineGroupId: Engine group id for scan config
+        :param isApproveRequired: Approve required property
+
+        """
+
+        params  = {}
+
+        params['xml'] = xml
+        params['name'] = name
+        params['engineGroupId'] = engineGroupId
+
+        if id:
+            params['id'] = id
+
+        if defendEnabled:
+            params['defendEnabled'] = defendEnabled
+
+        if monitoring:
+            params['monitoring'] = monitoring
+
+        if monitoringDelay:
+            params['monitoringDelay'] = monitoringDelay
+
+        if monitoringTriggerScan:
+            params['monitoringTriggerScan'] = monitoringDelay
+
+        if isApproveRequired:
+            params['isApproveRequired'] = monitoring
+
+        return self._request('POST', "Config/SaveConfig")
+
+    def get_config(self, id):
+        """Retrieves scan config for the client
+
+        :param id: Scan config ID
+
+        """
+
+        params  = {}
+
+        params['id'] = id
+
+        return self._request('POST', "Config/GetConfig")
+
+    def get_attachment(self, configId, fileName, fileType):
+        """Retrieves auxiliary files (such as macro, traffic recording, etc), referenced in the scan configuration
+
+        :param configId: Scan config ID
+        :param fileName: Name of requested file
+        :param fileType: File type. Values are: "Authentication", "Certificate", "Crawling", "Selenium", "Traffic", "Wsdl
+
+        """
+
+        params  = {}
+
+        params['configId'] = configId
+        params['fileName'] = fileName
+        params['fileType'] = fileType
+
+        return self._request('POST', "Config/GetAttachment")
+
+    def get_attachments(self, configId):
+        """Retrieves auxiliary files (such as macro, traffic recording, etc), referenced in the scan configuration
+
+        :param configId: Scan config ID
+
+        """
+
+        params  = {}
+
+        params['configId'] = configId
+
+
+        return self._request('POST', "Config/GetAttachments")
+
+
     # Utility
     @staticmethod
     def _build_list_params(param_name, key, values):
@@ -489,8 +576,6 @@ class PyAppSpider(object):
             'User-Agent': self.user_agent,
             'Authorization': 'Basic ' + str(self.token)
         }
-
-        #headers[]
 
         if not files:
             headers['Accept'] = 'application/json'

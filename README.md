@@ -1,6 +1,6 @@
-# PyAppSpider!
+# PyAppSpider
 
-A python client for Rapid7 AppScan Enterprise.
+A python client for Rapid7 AppSpider Enterprise.
 
 ## Installation
 
