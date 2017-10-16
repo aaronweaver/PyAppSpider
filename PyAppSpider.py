@@ -7,9 +7,14 @@ import requests.packages.urllib3
 
 
 class PyAppSpider(object):
-    """An API wrapper for AppSpider Enterprise."""
+    """An API wrapper for AppSpider Enterprise.
+    https://appspider.help.rapid7.com/docs/rest-api-overview
+    """
 
     token = None
+    success = False
+    clients = None
+    test="blah"
 
     def __init__(self, host, api_version='v1', verify_ssl=True, timeout=60, proxies=None, user_agent=None, cert=None, debug=False):
         """Initialize a AppSpider Enterprise API instance.
@@ -46,25 +51,39 @@ class PyAppSpider(object):
         if not self.verify_ssl:
             requests.packages.urllib3.disable_warnings()  # Disabling SSL warning messages if verification is disabled.
 
-    def authenticate(self, name, password):
-        """Returns the AppSpider authentication token.
+    def authenticate(self, name, password, clientId=None):
+        """Returns the AppSpider authentication token and/or client associated with the login. If the account is multi-client then AppSpider returns the list of clients associated with the account.
 
         :param name: Userid of the appspider user
         :param name: Password of the appspider user
+        :param name: ClientID in AppSpider
 
         """
+        params  = {}
+        responseCode = 0 #Unauthenticated
 
-        data = {
-            'name': name,
-            'password': password
-            }
+        if clientId:
+            params['clientId'] = clientId
 
-        response = self._request('POST', 'Authentication/Login', data=data)
-        self.token = response.data["Token"]
+        params['name'] = name
+        params['password'] = password
 
-        return response
+        response = self._request('POST', 'Authentication/Login', data=params)
+
+        self.success = response.data["IsSuccess"]
+
+        if self.success:
+            self.token = response.data["Token"]
+            responseCode = 1 #Authenticated
+        elif response.data["Reason"] == "Invalid clientId":
+            self.clients = response.data["Clients"]
+            responseCode = 2 #Authenticated but need to select a client id
+
+        return responseCode
 
     ###### Scan API #######
+
+    ###### Scan Management ######
     def get_scans(self):
         """Retrieves the list of scans.
 
@@ -424,7 +443,7 @@ class PyAppSpider(object):
         return self._request('GET', "Report/GetCrawledLinksXml", params)
 
     ###### Scan Configuration Operations #######
-    def import_standard_report(self, xml, name, engineGroupId, id=None, defendEnabled=None, monitoring=None, monitoringDelay=None, monitoringTriggerScan=None, isApproveRequired=None):
+    def save_config(self, xml, name, engineGroupId, clientId, id=None, defendEnabled=False, monitoring=False, monitoringDelay=0, monitoringTriggerScan=False, isApproveRequired=False):
         """Creates a new scan configuration
 
         :param id: If id not provided new config will be created. If id provided config update performed.
@@ -441,29 +460,30 @@ class PyAppSpider(object):
 
         params  = {}
 
-        params['xml'] = xml
-        params['name'] = name
-        params['engineGroupId'] = engineGroupId
+        #Required Parameters
+        params['Name'] = name
+        params['EngineGroupId'] = engineGroupId
+        params['ClientId'] = clientId
 
-        if id:
-            params['id'] = id
+        #Not required parameters
+        params['Id'] = id
+        params['DefendEnabled'] = defendEnabled
+        params['Monitoring'] = monitoring
+        params['MonitoringDelay'] = monitoringDelay
+        params['MonitoringTriggerScan'] = monitoringTriggerScan
+        params['IsApproveRequired'] = isApproveRequired
 
-        if defendEnabled:
-            params['defendEnabled'] = defendEnabled
+        xmlFile = open(xml, "r")
+        params['Xml'] = xmlFile.read()
 
-        if monitoring:
-            params['monitoring'] = monitoring
+        return self._request('POST', "Config/SaveConfig", files={'Config': (None,json.dumps(params))})
 
-        if monitoringDelay:
-            params['monitoringDelay'] = monitoringDelay
+    def get_configs(self):
+        """Retrieves all scan configs for the client
 
-        if monitoringTriggerScan:
-            params['monitoringTriggerScan'] = monitoringDelay
+        """
 
-        if isApproveRequired:
-            params['isApproveRequired'] = monitoring
-
-        return self._request('POST', "Config/SaveConfig", params)
+        return self._request('GET', "Config/GetConfigs")
 
     def get_config(self, id):
         """Retrieves scan config for the client
