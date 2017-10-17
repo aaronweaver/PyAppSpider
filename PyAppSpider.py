@@ -103,6 +103,14 @@ class PyAppSpider(object):
             statusTxt = "Completed"
         elif statusId == 72:
             statusTxt = "Failed"
+        elif statusId == 80:
+            statusTxt = "Paused"
+        elif statusId == 82:
+            statusTxt = "Running"
+        elif statusId == 119:
+            statusTxt = "Vuln Load Failed"
+        elif statusId == 122:
+            statusTxt = "Stopping"
 
         return statusTxt
 
@@ -204,7 +212,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "/Scan/StopAllScans")
 
-    def get_scan_status(self):
+    def get_scan_status(self, scanId):
         """Retrieves the scan status represented by a string
 
         :param scanId: Scan ID (guid)
@@ -313,8 +321,6 @@ class PyAppSpider(object):
         """Retrieves the list of scan engine groups. Note that System Administrator credentials are required to work with scan engines
 
         """
-        def engineGroupId(self):
-            return "hi"
 
         return self._request('GET', "EngineGroup/GetAllEngineGroups")
 
@@ -348,7 +354,7 @@ class PyAppSpider(object):
         if monitoring:
             params['monitoring'] = monitoring
 
-        return self._request('POST', "EngineGroup/SaveEngineGroup", params)
+        return self._request('POST', "EngineGroup/SaveEngineGroup", data=params)
 
     def admin_delete_engine_group(self, ids):
         """Deletes a scan engine group
@@ -361,20 +367,7 @@ class PyAppSpider(object):
 
         params['ids'] = ids
 
-        return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
-
-    def admin_delete_engine_group(self, ids):
-        """Deletes a scan engine group
-
-        :param ids: Scan engine group IDs (guid)
-
-        """
-
-        params  = {}
-
-        params['ids'] = ids
-
-        return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
+        return self._request('POST', "EngineGroup/DeleteEngineGroup", data=params)
 
     def admin_add_engine_to_group(self, groupId, engineId):
         """Adds a scan engine to a scan engine group
@@ -389,7 +382,7 @@ class PyAppSpider(object):
         params['groupId'] = groupId
         params['engineId'] = engineId
 
-        return self._request('POST', "EngineGroup/AddEngineToGroup", params)
+        return self._request('POST', "EngineGroup/AddEngineToGroup", data=params)
 
     def admin_delete_engine_from_group(self, groupId, engineId):
         """Deletes scan engine from scan engine group
@@ -404,7 +397,7 @@ class PyAppSpider(object):
         params['groupId'] = groupId
         params['engineId'] = engineId
 
-        return self._request('POST', "EngineGroup/DeleteEngineFromGroup", params)
+        return self._request('POST', "EngineGroup/DeleteEngineFromGroup", data=params)
 
     ###### Report Management #######
     def import_standard_report(self, reportData, scanId=None, configId=None):
@@ -426,7 +419,7 @@ class PyAppSpider(object):
         if configId:
             params['configId'] = configId
 
-        return self._request('POST', "Report/ImportStandardReport", params)
+        return self._request('POST', "Report/ImportStandardReport", data=params)
 
     def import_checkmarx_report(self, scanId, file):
         """Creates a new scan in the scan history or updates the report for the specified scan
@@ -441,7 +434,7 @@ class PyAppSpider(object):
         params['scanId'] = scanId
         params['file'] = file
 
-        return self._request('POST', "Report/ImportCheckmarxReport", params)
+        return self._request('POST', "Report/ImportCheckmarxReport", data=params)
 
     def get_vulnerabilities_summary(self, scanId):
         """Gets VulnerabilitiesSummary.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report

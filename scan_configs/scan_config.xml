@@ -75,19 +75,12 @@
     <MaxWebResourcesOverhead>1000</MaxWebResourcesOverhead>
     <SeedUrlList>
       <SeedUrl>
-        <Value>http://localhost.me.com/</Value>
+        <Value>{%seed_url%}</Value>
       </SeedUrl>
     </SeedUrlList>
     <ScopeConstraintList>
       <ScopeConstraint>
-        <URL>http://localhost.me.com/*</URL>
-        <Method>All</Method>
-        <MatchCriteria>Wildcard</MatchCriteria>
-        <Exclusion>Include</Exclusion>
-        <HttpParameterList />
-      </ScopeConstraint>
-      <ScopeConstraint>
-        <URL>http://*.localhost.me.com/*</URL>
+        <URL>{%constraint_url%}</URL>
         <Method>All</Method>
         <MatchCriteria>Wildcard</MatchCriteria>
         <Exclusion>Include</Exclusion>
