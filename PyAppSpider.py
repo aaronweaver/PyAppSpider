@@ -5,7 +5,6 @@ import requests.packages.urllib3
 
 #from . import __version__ as version
 
-
 class PyAppSpider(object):
     """An API wrapper for AppSpider Enterprise.
     https://appspider.help.rapid7.com/docs/rest-api-overview
@@ -13,8 +12,8 @@ class PyAppSpider(object):
 
     token = None
     success = False
+    loginCode = 0
     clients = None
-    test="blah"
 
     def __init__(self, host, api_version='v1', verify_ssl=True, timeout=60, proxies=None, user_agent=None, cert=None, debug=False):
         """Initialize a AppSpider Enterprise API instance.
@@ -60,7 +59,6 @@ class PyAppSpider(object):
 
         """
         params  = {}
-        responseCode = 0 #Unauthenticated
 
         if clientId:
             params['clientId'] = clientId
@@ -74,12 +72,39 @@ class PyAppSpider(object):
 
         if self.success:
             self.token = response.data["Token"]
-            responseCode = 1 #Authenticated
+            self.loginCode = 1 #Authenticated
         elif response.data["Reason"] == "Invalid clientId":
             self.clients = response.data["Clients"]
-            responseCode = 2 #Authenticated but need to select a client id
+            self.loginCode = 2 #Authenticated but need to select a client id
 
-        return responseCode
+        return response
+
+    ###### Helper Functions ######
+
+    def get_client_name(self, clientId):
+        """Retrieves the client name from a client id
+
+        :param clientId: Client ID (guid)
+
+        """
+
+        config = self.get_config(clientId)
+
+        return config.json()["Config"]["Name"]
+
+    def get_scan_status_text(self, statusId):
+        """Retrieves the client name from a client id
+
+        :param clientId: Status ID (int)
+
+        """
+        statusTxt = "Unknown Code: " + str(statusId)
+        if statusId == 32:
+            statusTxt = "Completed"
+        elif statusId == 72:
+            statusTxt = "Failed"
+
+        return statusTxt
 
     ###### Scan API #######
 
@@ -102,10 +127,10 @@ class PyAppSpider(object):
         if configId:
             params['configId'] = configId
 
-        if username:
+        if configName:
             params['configName'] = configName
 
-        return self._request('POST', "Scan/GetScans/", params)
+        return self._request('POST', "Scan/RunScan/", data=params)
 
     def cancel_scan(self, scanId):
         """Cancels "Starting" or "Waiting for Cloud" scan
@@ -117,7 +142,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/CancelScan", params)
+        return self._request('POST', "/Scan/CancelScan", data=params)
 
     def pause_scan(self, scanId):
         """Pauses a running scan
@@ -129,7 +154,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/PauseScan", params)
+        return self._request('POST', "/Scan/PauseScan", data=params)
 
     def pause_all_scans(self):
         """Pauses all running scans
@@ -149,7 +174,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/ResumeScan", params)
+        return self._request('POST', "/Scan/ResumeScan", data=params)
 
     def resume_all_scans(self):
         """Resumes all scans
@@ -169,7 +194,7 @@ class PyAppSpider(object):
         params  = {}
         params['scanId'] = scanId
 
-        return self._request('POST', "/Scan/StopScan", params)
+        return self._request('POST', "/Scan/StopScan", data=params)
 
     def stop_all_scans(self):
         """Stops all scans
@@ -236,14 +261,14 @@ class PyAppSpider(object):
         return self._request('GET', "Finding/GetVulnerabilities")
 
     ###### Scan Engine Operations #######
-    def get_engines(self):
+    def admin_get_engines(self):
         """Retrieves the list of scan engines.
 
         """
 
         return self._request('GET', "Engine/GetEngines")
 
-    def save_engine(self, url, virtualName, login, password, id=None, notes=None, doNotUpdate=None):
+    def admin_save_engine(self, url, virtualName, login, password, id=None, notes=None, doNotUpdate=None):
         """Creates or updates scan engine
 
         :param id: if id not provided new engine will be created. if id provided engine update performed.
@@ -273,7 +298,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "Engine/SaveEngine", params)
 
-    def delete_engine(self, ids):
+    def admin_delete_engine(self, ids):
         """Scan engine IDs
 
         :param ids: Scan Engine ID (guid)
@@ -284,21 +309,23 @@ class PyAppSpider(object):
         return self._request('POST', "Engine/DeleteEngine", params)
 
     ###### Scan Engine Operations #######
-    def get_all_engine_groups(self):
+    def admin_get_all_engine_groups(self):
         """Retrieves the list of scan engine groups. Note that System Administrator credentials are required to work with scan engines
 
         """
+        def engineGroupId(self):
+            return "hi"
 
         return self._request('GET', "EngineGroup/GetAllEngineGroups")
 
-    def get_engine_groups_for_client(self):
+    def admin_get_engine_groups_for_client(self):
         """Retrieves the list of scan engine groups for a client. Note that System Administrator credentials are required to work with scan engines
 
         """
 
         return self._request('GET', "EngineGroup/GetEngineGroupsForClient")
 
-    def save_engine_group(self, name, description=None, monitoring=None, id=None):
+    def admin_save_engine_group(self, name, description=None, monitoring=None, id=None):
         """Creates or updates a scan engine group
 
         :param id: If id not provided a new engine group will be created. If an id is provided then an engine group update is performed.
@@ -323,7 +350,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "EngineGroup/SaveEngineGroup", params)
 
-    def delete_engine_group(self, ids):
+    def admin_delete_engine_group(self, ids):
         """Deletes a scan engine group
 
         :param ids: Scan engine group IDs (guid)
@@ -336,7 +363,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
 
-    def delete_engine_group(self, ids):
+    def admin_delete_engine_group(self, ids):
         """Deletes a scan engine group
 
         :param ids: Scan engine group IDs (guid)
@@ -349,7 +376,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
 
-    def add_engine_to_group(self, groupId, engineId):
+    def admin_add_engine_to_group(self, groupId, engineId):
         """Adds a scan engine to a scan engine group
 
         :param groupId: Scan engine group ID
@@ -364,7 +391,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "EngineGroup/AddEngineToGroup", params)
 
-    def delete_engine_from_group(self, groupId, engineId):
+    def admin_delete_engine_from_group(self, groupId, engineId):
         """Deletes scan engine from scan engine group
 
         :param groupId: Scan engine group ID
@@ -416,7 +443,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "Report/ImportCheckmarxReport", params)
 
-    def import_checkmarx_report(self, scanId):
+    def get_vulnerabilities_summary(self, scanId):
         """Gets VulnerabilitiesSummary.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report
 
         :param scanId: Scan ID
@@ -429,8 +456,21 @@ class PyAppSpider(object):
 
         return self._request('GET', "Report/GetVulnerabilitiesSummaryXml", params)
 
-    def import_checkmarx_report(self, scanId):
-        """Gets VulnerabilitiesSummary.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report
+    def get_report_zip(self, scanId):
+        """Gets ReportAllFiles.zip for the scan. Only scans in "Completed" and "Stopped" states may have reports
+
+        :param scanId: Scan ID
+
+        """
+
+        params  = {}
+
+        params['scanId'] = scanId
+
+        return self._request('GET', "Report/GetVulnerabilitiesSummaryXml", params)
+
+    def get_crawled_links(self, scanId):
+        """Gets CrawledLinks.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report
 
         :param scanId: Scan ID
 
@@ -496,7 +536,7 @@ class PyAppSpider(object):
 
         params['id'] = id
 
-        return self._request('POST', "Config/GetConfig", params)
+        return self._request('GET', "Config/GetConfig", params)
 
     def get_attachment(self, configId, fileName, fileType):
         """Retrieves auxiliary files (such as macro, traffic recording, etc), referenced in the scan configuration
@@ -513,7 +553,7 @@ class PyAppSpider(object):
         params['fileName'] = fileName
         params['fileType'] = fileType
 
-        return self._request('POST', "Config/GetAttachment", params)
+        return self._request('POST', "Config/GetAttachment", data=params)
 
     ###### Blackout Operations Operations #######
     def get_blackouts(self):
@@ -555,7 +595,7 @@ class PyAppSpider(object):
         if recurrence:
             params['recurrence'] = id
 
-        return self._request('POST', "Blackout/SaveBlackout", params)
+        return self._request('POST', "Blackout/SaveBlackout", data=params)
 
     def delete_blackouts(self, blackoutIds):
         """Removes a blackout window
@@ -568,7 +608,7 @@ class PyAppSpider(object):
 
         params['blackoutIds'] = blackoutIds
 
-        return self._request('POST', "Blackout/DeleteBlackouts", params)
+        return self._request('POST', "Blackout/DeleteBlackouts", data=params)
 
 
     # Utility
