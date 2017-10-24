@@ -1,0 +1,10 @@
+<ScanConfig>
+  <Name>Lightweight_Scan</Name>
+  <CrawlConfig>
+    <MaxDomain>100</MaxDomain>
+    <SeedUrlList>
+    </SeedUrlList>
+    <ScopeConstraintList>
+    </ScopeConstraintList>
+  </CrawlConfig>
+</ScanConfig>

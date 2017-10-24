@@ -2,6 +2,7 @@ import json
 import requests
 import requests.exceptions
 import requests.packages.urllib3
+from xml.etree import cElementTree as ET
 
 #from . import __version__ as version
 
@@ -31,7 +32,7 @@ class PyAppSpider(object):
         :param debug: Prints requests and responses, useful for debugging.
 
         """
-        version = ".1"
+        version = "0.2"
         self.host = host + 'AppSpiderEnterprise/rest/' + api_version + '/'
         self.api_version = api_version
         self.verify_ssl = verify_ssl
@@ -39,7 +40,7 @@ class PyAppSpider(object):
         self.timeout = timeout
 
         if not user_agent:
-            self.user_agent = 'pyAppSpider_api/' + version
+            self.user_agent = 'pyAppSpider_api/v' + version
         else:
             self.user_agent = user_agent
 
@@ -103,8 +104,97 @@ class PyAppSpider(object):
             statusTxt = "Completed"
         elif statusId == 72:
             statusTxt = "Failed"
+        elif statusId == 80:
+            statusTxt = "Paused"
+        elif statusId == 82:
+            statusTxt = "Running"
+        elif statusId == 119:
+            statusTxt = "Vuln Load Failed"
+        elif statusId == 122:
+            statusTxt = "Stopping"
 
         return statusTxt
+
+    def edit_scan_config_xml(self, xml_file, seed_urls, scope_constraints, custom_headers):
+        """Adds xml elements for scanning url and includes
+
+        :param xml_file: Scanner config xml file
+        :param seed_urls: seed_url
+        :param scope_constraints: scope_constraints
+
+        """
+
+        tree = ET.parse(xml_file)
+
+        xmlRoot = tree.getroot()
+        xml_node = xmlRoot.findall("CrawlConfig/SeedUrlList")
+
+        for elem in xmlRoot.iterfind('CrawlConfig/SeedUrlList'):
+            for seed_url in seed_urls:
+                seedUrl = ET.Element("SeedUrl")
+                elem.append(seedUrl)
+                value = ET.Element("Value")
+                value.text = seed_url['url']
+                seedUrl.append(value)
+
+        for elem in xmlRoot.iterfind('CrawlConfig/ScopeConstraintList'):
+            for scope_constraint in scope_constraints:
+                scope_constraintXML = ET.Element("ScopeConstraint")
+                elem.append(scope_constraintXML)
+                #URL
+                url = ET.Element("URL")
+                url.text = scope_constraint['url']
+                scope_constraintXML.append(url)
+                #Method
+                method = ET.Element("Method")
+                if 'method' in scope_constraint:
+                    method.text = scope_constraint['method']
+                else:
+                    method.text = "All"
+                scope_constraintXML.append(method)
+                #MatchCriteria
+                match_criteria = ET.Element("MatchCriteria")
+                if "match_criteria" in scope_constraint:
+                    match_criteria.text = scope_constraint["match_criteria"]
+                else:
+                    match_criteria.text = "Wildcard"
+
+                scope_constraintXML.append(match_criteria)
+                #Exclusion
+                include = ET.Element("Exclusion")
+                if "include" in scope_constraint:
+                    include.text = scope_constraint["include"]
+                else:
+                    include.text = "Include"
+
+                scope_constraintXML.append(include)
+                http_param = ET.Element("HttpParameterList")
+                scope_constraintXML.append(http_param)
+
+        #Add a customer header, like an API token
+        for elem in xmlRoot.iterfind('HTTPHeadersConfig/CustomHeadersList'):
+            for custom_header in custom_headers:
+                customHeaders = ET.Element("CustomHeaders")
+                elem.append(customHeaders)
+                value = ET.Element("Value")
+                value.text = custom_header["custom_header"]
+                customHeaders.append(value)
+
+        return ET.tostring(xmlRoot, method="xml")
+
+    #Saves a file from string
+    def save_file(self, data, filename):
+        success = None
+        #If the API can't find the file it returns a json object
+        if "IsSuccess" in data:
+            success = False
+        else:
+            file = open(filename,"wb")
+            file.write(data)
+            file.close
+            success = True
+
+        return success
 
     ###### Scan API #######
 
@@ -204,7 +294,7 @@ class PyAppSpider(object):
 
         return self._request('POST', "/Scan/StopAllScans")
 
-    def get_scan_status(self):
+    def get_scan_status(self, scanId):
         """Retrieves the scan status represented by a string
 
         :param scanId: Scan ID (guid)
@@ -313,8 +403,6 @@ class PyAppSpider(object):
         """Retrieves the list of scan engine groups. Note that System Administrator credentials are required to work with scan engines
 
         """
-        def engineGroupId(self):
-            return "hi"
 
         return self._request('GET', "EngineGroup/GetAllEngineGroups")
 
@@ -348,7 +436,7 @@ class PyAppSpider(object):
         if monitoring:
             params['monitoring'] = monitoring
 
-        return self._request('POST', "EngineGroup/SaveEngineGroup", params)
+        return self._request('POST', "EngineGroup/SaveEngineGroup", data=params)
 
     def admin_delete_engine_group(self, ids):
         """Deletes a scan engine group
@@ -361,20 +449,7 @@ class PyAppSpider(object):
 
         params['ids'] = ids
 
-        return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
-
-    def admin_delete_engine_group(self, ids):
-        """Deletes a scan engine group
-
-        :param ids: Scan engine group IDs (guid)
-
-        """
-
-        params  = {}
-
-        params['ids'] = ids
-
-        return self._request('POST', "EngineGroup/DeleteEngineGroup", params)
+        return self._request('POST', "EngineGroup/DeleteEngineGroup", data=params)
 
     def admin_add_engine_to_group(self, groupId, engineId):
         """Adds a scan engine to a scan engine group
@@ -389,7 +464,7 @@ class PyAppSpider(object):
         params['groupId'] = groupId
         params['engineId'] = engineId
 
-        return self._request('POST', "EngineGroup/AddEngineToGroup", params)
+        return self._request('POST', "EngineGroup/AddEngineToGroup", data=params)
 
     def admin_delete_engine_from_group(self, groupId, engineId):
         """Deletes scan engine from scan engine group
@@ -404,7 +479,7 @@ class PyAppSpider(object):
         params['groupId'] = groupId
         params['engineId'] = engineId
 
-        return self._request('POST', "EngineGroup/DeleteEngineFromGroup", params)
+        return self._request('POST', "EngineGroup/DeleteEngineFromGroup", data=params)
 
     ###### Report Management #######
     def import_standard_report(self, reportData, scanId=None, configId=None):
@@ -426,7 +501,7 @@ class PyAppSpider(object):
         if configId:
             params['configId'] = configId
 
-        return self._request('POST', "Report/ImportStandardReport", params)
+        return self._request('POST', "Report/ImportStandardReport", data=params)
 
     def import_checkmarx_report(self, scanId, file):
         """Creates a new scan in the scan history or updates the report for the specified scan
@@ -441,7 +516,7 @@ class PyAppSpider(object):
         params['scanId'] = scanId
         params['file'] = file
 
-        return self._request('POST', "Report/ImportCheckmarxReport", params)
+        return self._request('POST', "Report/ImportCheckmarxReport", data=params)
 
     def get_vulnerabilities_summary(self, scanId):
         """Gets VulnerabilitiesSummary.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report
@@ -467,7 +542,7 @@ class PyAppSpider(object):
 
         params['scanId'] = scanId
 
-        return self._request('GET', "Report/GetVulnerabilitiesSummaryXml", params)
+        return self._request('GET', "Report/GetReportZip", params)
 
     def get_crawled_links(self, scanId):
         """Gets CrawledLinks.xml for the scan. Only scans in "Completed" and "Stopped" states may have a report
@@ -483,7 +558,9 @@ class PyAppSpider(object):
         return self._request('GET', "Report/GetCrawledLinksXml", params)
 
     ###### Scan Configuration Operations #######
-    def save_config(self, xml, name, engineGroupId, clientId, id=None, defendEnabled=False, monitoring=False, monitoringDelay=0, monitoringTriggerScan=False, isApproveRequired=False):
+    def save_config(self, xml, name, engineGroupId, clientId, id=None, defendEnabled=False, monitoring=False,
+        monitoringDelay=0, monitoringTriggerScan=False, isApproveRequired=False, seed_url=False, constraint_url=False,
+        seed_urls=False, scope_constraints=False, custom_headers=False):
         """Creates a new scan configuration
 
         :param id: If id not provided new config will be created. If id provided config update performed.
@@ -513,8 +590,8 @@ class PyAppSpider(object):
         params['MonitoringTriggerScan'] = monitoringTriggerScan
         params['IsApproveRequired'] = isApproveRequired
 
-        xmlFile = open(xml, "r")
-        params['Xml'] = xmlFile.read()
+        #XML Scan Config Parameters
+        params['Xml'] = self.edit_scan_config_xml(xml, seed_urls, scope_constraints, custom_headers)
 
         return self._request('POST', "Config/SaveConfig", files={'Config': (None,json.dumps(params))})
 
@@ -661,18 +738,16 @@ class PyAppSpider(object):
 
             try:
                 if response.status_code == 201: #Created new object
-                    object_id = response.headers["Location"].split('/')
-                    key_id = object_id[-2]
-                    try:
-                        data = int(key_id)
-                    except:
-                        data = response.json()
+                    data = response.json()
 
                     return AppSpiderResponse(message="Upload complete", data=data, success=True)
                 elif response.status_code == 204: #Object updates
                     return AppSpiderResponse(message="Object updated.", success=True)
                 elif response.status_code == 404: #Object not created
                     return AppSpiderResponse(message="Object id does not exist.", success=False)
+                elif 'content-disposition' in response.headers:
+                    data = response.content
+                    return AppSpiderResponse(message="Success", data=data, success=True, response_code=response.status_code)
                 else:
                     data = response.json()
                     return AppSpiderResponse(message="Success", data=data, success=True, response_code=response.status_code)
@@ -707,6 +782,9 @@ class AppSpiderResponse(object):
         else:
             return self.message
 
+    def binary(self):
+        return self.data
+
     def json(self):
         return self.data
 
@@ -719,7 +797,14 @@ class AppSpiderResponse(object):
         return self.data["TotalCount"]
 
     def is_success(self):
-        return self.data["IsSuccess"]
+        data = None
+
+        try:
+            data = self.data["IsSuccess"]
+        except:
+            data = self.data
+
+        return data
 
     def error(self):
         return self.data["ErrorMessage"]
