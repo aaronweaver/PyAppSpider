@@ -56,6 +56,7 @@ optional arguments:
   --engines             Lists the engines configured in AppSpider Enterprise
   --engine-groups       Lists the engine groups configured in AppSpider
                         Enterprise
+```
 
 ### Authentication
 Two options for authenticating:
