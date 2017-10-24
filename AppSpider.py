@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+
+"""AppSpider.py: CLI for AppSpider."""
+
+__author__      = "Aaron Weaver"
+__copyright__   = "Copyright 2017, Aaron Weaver"
+
 import argparse
 import os
 import PyAppSpider
@@ -19,6 +26,12 @@ if __name__ == '__main__':
     #AppSpider specific Functions
     parser.add_argument('--scans', help='Retrieve the scans status.', default=False, action='store_true')
     parser.add_argument('--configs', help='Retrieves all the scan configurations.', default=False, action='store_true')
+    parser.add_argument('--vulns', help='Retrieves all the vulnerabilites for the specified client.', default=False, action='store_true')
+    parser.add_argument('--vulns-summary', help='Gets VulnerabilitiesSummary.xml for the scan.  Requires a scan id and output file.', default=False, action='store_true')
+    parser.add_argument('--scan-id', help='Scan id for the specified client.', default=None)
+    parser.add_argument('--output-file', help='Name of the output file.', default=None)
+    parser.add_argument('--report-zip', help='Retrieves the zip report file.  Requires a scan id and output file.', default=False, action='store_true')
+    parser.add_argument('--crawled-links', help='Retrieves the crawled links. Requires a scan id and output file.', default=False, action='store_true')
     parser.add_argument('--run-scan', help='Runs the scan with the specified scan name.', default=None)
     parser.add_argument('--create-config', help='Creates a scan configuration', default=None, action='store_true')
     parser.add_argument('--create-run', help='Creates a scan configuration', default=None, action='store_true')
@@ -27,6 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--create-xml', help='XML configuration for scan', default=None)
     parser.add_argument('--create-seed-url', help='Starting URL for scan', default=None)
     parser.add_argument('--create-constraint-url', help='Include url constraint, example: http://www.yoursite.com/*', default=None)
+    parser.add_argument('--create-custom-header', help='Custom Header (API Token in header for example)', default=None)
     parser.add_argument('--engines', help='Lists the engines configured in AppSpider Enterprise', default=False, action='store_true')
     parser.add_argument('--engine-groups', help='Lists the engine groups configured in AppSpider Enterprise', default=False, action='store_true')
 
@@ -83,14 +97,15 @@ if __name__ == '__main__':
             authenticated = appspider.authenticate(username, password, clientId)
 
             if appspider.loginCode == 1:
-                authOk = True
+                authOK = True
         else:
             print "Invalid Client Name"
+            print authenticated.data_json(pretty=True)
     else:
         print "Authentication problem: " + authenticated.error()
 
     #Authenticated, let's do something fun
-    if authOk == True:
+    if authOK == True:
         #Retrieve the scans and status
         if arguments.scans:
             scans =  appspider.get_scans()
@@ -98,6 +113,7 @@ if __name__ == '__main__':
             if scans.is_success():
                 for scan in scans.json()["Scans"]:
                     print "Status: " +  appspider.get_scan_status_text(scan["Status"])
+                    print "Scan ID: " + scan["Id"]
                     for target in scan["Targets"]:
                         print "URL: " + target["Host"]
                     print "Started: " + scan["StartTime"]
@@ -109,8 +125,43 @@ if __name__ == '__main__':
                     print
             else:
                 print "No scans found"
+        #Retrieve vulnerablities
+        elif arguments.vulns:
+            vulnerabilities =  appspider.get_vulnerabilities()
+            print "Retrieving vulnerablities for client: " + client
+            if vulnerabilities.is_success():
+                print "Total Count: " + str(vulnerabilities.json()["TotalCount"])
+                for vulnerability in vulnerabilities.json()["Findings"]:
+                    print "Vuln Type: " + vulnerability["VulnType"]
+                    print "Vuln Type: " + vulnerability["VulnUrl"]
+                    print "Vuln Type: " + vulnerability["Description"]
+                    print
+            else:
+                print "No vulnerabilities found"
+        elif arguments.vulns_summary:
+            if arguments.scan_id is not None and arguments.output_file is not None:
+                vulnerabilities =  appspider.get_vulnerabilities_summary(arguments.scan_id)
+                print "Retrieving vulnerablities for client: " + client
+                appspider.save_file(vulnerabilities.binary(), arguments.output_file)
+            else:
+                print "Scan id or out file needed."
+        elif arguments.report_zip:
+            if arguments.report_zip is not None and arguments.output_file is not None:
+                vulnerabilities =  appspider.get_report_zip(arguments.scan_id)
+                print "Retrieving Zip file for client: " + client
+                appspider.save_file(vulnerabilities.binary(), arguments.output_file)
+            else:
+                print "Scan id or out file needed."
+        elif arguments.crawled_links:
+            if arguments.crawled_links is not None and arguments.output_file is not None:
+                vulnerabilities =  appspider.get_crawled_links(arguments.scan_id)
+                print "Retrieving crawled links file for client: " + client
+                appspider.save_file(vulnerabilities.binary(), arguments.output_file)
+            else:
+                print "Scan id or out file needed."
         #Get the current configurations
         elif arguments.configs:
+            print "Retrieving client config:\n"
             configs =  appspider.get_configs()
             print "Configurations for client: " + client
 
@@ -119,45 +170,76 @@ if __name__ == '__main__':
                     print "Config Name: " +  config["Name"]
         #Run a scan
         elif arguments.run_scan is not None:
+            "Attempting to run a scan\n"
             scan_status =  appspider.run_scan(configName=arguments.run_scan)
             if scan_status.is_success():
                 print "Scan queued. ID is: " + scan_status.json()["Scan"]["Id"]
         #Create a scan config
         elif arguments.create_config is not None:
-            #Find the guid fromt the scanner group name
-            groupId = None
-            groups = admin_appspider.admin_get_all_engine_groups()
+            print "Creating a scan config\n"
+            if arguments.create_xml is not None:
+                #Find the guid fromt the scanner group name
+                groupId = None
+                groups = admin_appspider.admin_get_all_engine_groups()
 
-            if groups.is_success():
-                for groups in groups.json()["EngineGroups"]:
-                    if groups["Name"] == arguments.create_engine_group:
-                        groupId = groups["Id"]
-            if groupId is not None:
-                save_config = appspider.save_config(arguments.create_xml, arguments.create_name, groupId, clientId)
+                if groups.is_success():
+                    for groups in groups.json()["EngineGroups"]:
+                        if groups["Name"] == arguments.create_engine_group:
+                            groupId = groups["Id"]
 
-                if save_config.is_success():
-                    print "Saved succesfully"
-                    if arguments.create_run is not None:
-                        scan_status =  appspider.run_scan(configName=arguments.create_name)
-                        if scan_status.is_success():
-                            print "Scan queued. ID is: " + scan_status.json()["Scan"]["Id"]
+                seed_urls = []
+                seed_url = {}
+
+                if arguments.create_seed_url is not None:
+                    seed_url['url'] = arguments.create_seed_url
+                    seed_urls.append(seed_url)
+
+                scope_constraints = []
+                scope_constraint = {}
+                if arguments.create_constraint_url is not None:
+                    scope_constraint['url'] = arguments.create_constraint_url
+                    scope_constraints.append(scope_constraint)
+
+                custom_headers = []
+                custom_header = {}
+                if arguments.create_custom_header is not None:
+                    custom_header['custom_header'] = arguments.create_custom_header
+                    custom_headers.append(custom_header)
+
+                #Save config
+                if groupId is not None:
+                    save_config = appspider.save_config(arguments.create_xml, arguments.create_name, groupId, clientId, seed_urls=seed_urls, scope_constraints = scope_constraints, custom_headers=custom_headers)
+
+                    if save_config.is_success():
+                        print "Saved succesfully"
+                        if arguments.create_run is not None:
+                            scan_status =  appspider.run_scan(configName=arguments.create_name)
+                            if scan_status.is_success():
+                                print "Scan queued. ID is: " + scan_status.json()["Scan"]["Id"]
+                    else:
+                        print "Config did not save, review the message below."
+                        print save_config.data_json(pretty=True)
                 else:
-                    print "Config did not save, review the message below."
-                    print save_config.data_json(pretty=True)
+                    print "Group not found. Please verify the group name:"
+                    print groups.data_json(pretty=True)
             else:
-                print "Group not found. Please verify the group name:"
-                print groups.data_json(pretty=True)
+                print "XML file required to create a config. Re-run and specify the XML file exported from AppSpider. (--create_xml)"
+
         #List Engines configured
         elif arguments.engines:
+            print "Listing engines configured in AppSpider.\n"
             if admin_appspider.loginCode == 1:
                 print admin_appspider.admin_get_engines().data_json(pretty=True)
             else:
                 print "Not authenticated as an administrator."
         #Admin: List Engines Groups configured
         elif arguments.engine_groups:
+            print "Listing engines groups configured in AppSpider.\n"
             if admin_appspider.loginCode == 1:
                 groups = admin_appspider.admin_get_all_engine_groups()
                 print "Engine Groups configured on AppSpider:"
                 if groups.is_success():
                     for groups in groups.json()["EngineGroups"]:
                         print "Group Name: " +  groups["Name"]
+        else:
+            print "No action specified or action not found.\n"

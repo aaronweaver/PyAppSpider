@@ -74,18 +74,8 @@
     <CookieCommaSeparator>1</CookieCommaSeparator>
     <MaxWebResourcesOverhead>1000</MaxWebResourcesOverhead>
     <SeedUrlList>
-      <SeedUrl>
-        <Value>{%seed_url%}</Value>
-      </SeedUrl>
     </SeedUrlList>
     <ScopeConstraintList>
-      <ScopeConstraint>
-        <URL>{%constraint_url%}</URL>
-        <Method>All</Method>
-        <MatchCriteria>Wildcard</MatchCriteria>
-        <Exclusion>Include</Exclusion>
-        <HttpParameterList />
-      </ScopeConstraint>
     </ScopeConstraintList>
     <BlackListExtensionList>
       <BlackListExtension>
