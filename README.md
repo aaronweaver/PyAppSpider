@@ -106,25 +106,33 @@ export APPSPIDER_PROXY=<AppSpider Proxy (optional)>
 ### Example Command Line Usage
 
 Display help.
+
 `./AppSpider.py -h`
 
 List vulnerabilities for a client.
+
 `./AppSpider.py --client "<client name>" --vulns`
 
 Saves vulnerabilities for a client to an XML file.
+
 `./AppSpider.py --client "<client name>" --vulns-summary --output-file output/vulnssummer.xml`
 
 Return scans for a client.
+
 `./AppSpider.py --client "<client name>" --scans`
 
 Generate a zip report file.
+
 `./AppSpider.py --report-zip --client "<client name>" --scan-id <Scan ID Returned from --scans> --output-file output/report.zip`
 
 Create a scan configuration based off a prior scan config xml file.
+
 `./AppSpider.py --client "<client name>" --create-config --create-engine-group "<Engine GroupName>" --create-name "<Scan Name>" --create-seed-url "<URL to scan>" --create-custom-header "<optional API key or session token>" --create-xml scan_configs/scan_config.xml --create-constraint-url "<Constraint URL"`
 
 Creates and runs scan configuration based off a prior scan config xml file.
+
 `./AppSpider.py --client "<client name>" --create-config --create-run --create-engine-group "<Engine GroupName>" --create-name "<Scan Name>" --create-seed-url "<URL to scan>" --create-custom-header "<optional API key or session token>" --create-xml scan_configs/scan_config.xml --create-constraint-url "<Constraint URL>"`
 
 Run a scan.
+
 `./AppSpider.py -run-scan <Scan Name>`
