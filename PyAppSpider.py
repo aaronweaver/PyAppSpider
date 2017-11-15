@@ -25,7 +25,7 @@ class PyAppSpider(object):
         :param api_version: API version to call, the default is v1.
         :param verify_ssl: Specify if API requests will verify the host's SSL certificate, defaults to true.
         :param timeout: HTTP timeout in seconds, default is 30.
-        :param proxis: Proxy for API requests.
+        :param proxies: Proxy for API requests.
         :param user_agent: HTTP user agent string, default is "AppSpider Enterprise_api/[version]".
         :param cert: You can also specify a local cert to use as client side certificate, as a single file (containing
         the private key and the certificate) or as a tuple of both file's path
@@ -306,7 +306,7 @@ class PyAppSpider(object):
 
         return self._request('GET', "Scan/GetScanStatus", params)
 
-    def is_scan_active(self):
+    def is_scan_active(self, scanId):
         """Checks to see if the specified scan is active
 
         :param scanId: Scan ID (guid)
@@ -318,7 +318,7 @@ class PyAppSpider(object):
 
         return self._request('GET', "Scan/IsScanActive", params)
 
-    def is_scan_finished(self):
+    def is_scan_finished(self, scanId):
         """Checks to see if the specified scan is finished
 
         :param scanId: Scan ID (guid)
@@ -330,7 +330,7 @@ class PyAppSpider(object):
 
         return self._request('GET', "Scan/IsScanFinished", params)
 
-    def scan_has_report(self):
+    def scan_has_report(self, scanId):
         """Checks to see if the specified scan has a report
 
         :param scanId: Scan ID (guid)
