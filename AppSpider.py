@@ -8,8 +8,86 @@ __copyright__   = "Copyright 2017, Aaron Weaver"
 import argparse
 import os
 import PyAppSpider
+import zipfile
+import time
+import sys
+import uuid
 
 authOK = False
+
+#Look at possibly adding URL to support once client multi-url's
+def current_scan_in_progress(url=None):
+    scan_in_progress = False
+    scans =  appspider.get_scans()
+    print "Checking to see if a scan is running for this client: " + client
+
+    if scans.is_success():
+        for scan in scans.json()["Scans"]:
+            if appspider.get_scan_status_text(scan["Status"]) == "Running":
+                scan_in_progress = True
+                exit
+
+    return scan_in_progress
+
+#Initiates a scan based on a profile and then polls until completion
+def scan_poll(appspider, config, output_file):
+
+    #Avoid running multiple scans if a prior scan has not completed
+    if current_scan_in_progress():
+        print "\nScan already running exiting.\n"
+        quit()
+
+    scan_id = None
+    scan_status =  appspider.run_scan(configName=config)
+    scan_status_flag = False
+    scan_has_report_flag = False
+
+    if scan_status.is_success():
+        scan_id = scan_status.json()["Scan"]["Id"]
+        print "Scan queued. ID is: " + scan_id
+
+        #Check to see if scan is complete, poll until finished
+        while scan_status_flag == False:
+            time.sleep(2)
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            scan_status =  appspider.is_scan_finished(scan_id).json()
+            scan_status_flag = scan_status["Result"]
+            if scan_status_flag:
+                print "\nCompleted Scan!"
+
+        #Check for report
+        while scan_has_report_flag == False:
+            time.sleep(2)
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            scan_status =  appspider.scan_has_report(scan_id).json()
+            scan_has_report_flag = scan_status["Result"]
+            if scan_has_report_flag:
+                print "\nReport exists in AppSpider, downloading report."
+                targetFile = os.path.basename(output_file)
+                targetDirectory = os.path.dirname(output_file)
+                zipfilename = "AppSpider_" + str(uuid.uuid4()) + ".zip"
+                zip_download(appspider, scan_id, os.path.join(targetDirectory,zipfilename))
+                unzip_extract_delete(appspider, scan_id, targetDirectory, zipfilename, output_file)
+
+def zip_download(appspider, scan_id, zipName):
+    print "Downloading the zip file."
+    #Retrieve the zip file
+    vulnerabilities =  appspider.get_report_zip(scan_id)
+    #Save the file
+    print "Zip filename: " + zipName
+    appspider.save_file(vulnerabilities.binary(), zipName)
+
+def unzip_extract_delete(appspider, scan_id, destination, zipName, targetFile):
+    archive = zipfile.ZipFile(os.path.join(destination, zipName))
+    archive.extract('VulnerabilitiesSummary.xml', destination)
+    print "Removing Zip File: " + os.path.join(destination, zipName)
+    #Remove the zip file
+    os.remove(os.path.join(destination, zipName))
+    #Rename the findings file to the user specified filename
+    print "Renaming VulnerabilitiesSummary.xml: " + os.path.join(destination, 'VulnerabilitiesSummary.xml')
+    os.rename(os.path.join(destination, 'VulnerabilitiesSummary.xml'), targetFile)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='AppSpider API Client.', prefix_chars='--')
@@ -31,8 +109,10 @@ if __name__ == '__main__':
     parser.add_argument('--scan-id', help='Scan id for the specified client.', default=None)
     parser.add_argument('--output-file', help='Name of the output file.', default=None)
     parser.add_argument('--report-zip', help='Retrieves the zip report file.  Requires a scan id and output file.', default=False, action='store_true')
+    parser.add_argument('--zip-extract-summary', help='Destination for the VulnerabilitiesSummary.xml and then delete the zip file.', default=None)
     parser.add_argument('--crawled-links', help='Retrieves the crawled links. Requires a scan id and output file.', default=False, action='store_true')
     parser.add_argument('--run-scan', help='Runs the scan with the specified scan name.', default=None)
+    parser.add_argument('--run-scan-poll', help='Runs the scan with the specified config and polls to completion.', default=None)
     parser.add_argument('--create-config', help='Creates a scan configuration', default=None, action='store_true')
     parser.add_argument('--create-run', help='Creates a scan configuration', default=None, action='store_true')
     parser.add_argument('--create-engine-group', help='Engine group for a scan configuration', default=None)
@@ -110,6 +190,7 @@ if __name__ == '__main__':
         if arguments.scans:
             scans =  appspider.get_scans()
             print "Scan status for client: " + client
+
             if scans.is_success():
                 for scan in scans.json()["Scans"]:
                     print "Status: " +  appspider.get_scan_status_text(scan["Status"])
@@ -147,9 +228,10 @@ if __name__ == '__main__':
                 print "Scan id or out file needed."
         elif arguments.report_zip:
             if arguments.report_zip is not None and arguments.output_file is not None:
-                vulnerabilities =  appspider.get_report_zip(arguments.scan_id)
+                zip_download(appspider, arguments.scan_id, zipName=arguments.output_file)
                 print "Retrieving Zip file for client: " + client
-                appspider.save_file(vulnerabilities.binary(), arguments.output_file)
+                if arguments.zip_extract_summary is not None:
+                    unzip_extract_delete(appspider, arguments.scan_id, '', zipName=arguments.output_file)
             else:
                 print "Scan id or out file needed."
         elif arguments.crawled_links:
@@ -170,10 +252,14 @@ if __name__ == '__main__':
                     print "Config Name: " +  config["Name"]
         #Run a scan
         elif arguments.run_scan is not None:
-            "Attempting to run a scan\n"
+            print "Attempting to run a scan\n"
             scan_status =  appspider.run_scan(configName=arguments.run_scan)
             if scan_status.is_success():
                 print "Scan queued. ID is: " + scan_status.json()["Scan"]["Id"]
+        #Run a scan
+        elif arguments.run_scan_poll is not None:
+            print "Scanning target config, polling and downloading report."
+            scan_poll(appspider, arguments.run_scan_poll, arguments.output_file)
         #Create a scan config
         elif arguments.create_config is not None:
             print "Creating a scan config\n"
@@ -217,7 +303,7 @@ if __name__ == '__main__':
                             if scan_status.is_success():
                                 print "Scan queued. ID is: " + scan_status.json()["Scan"]["Id"]
                     else:
-                        print "Config did not save, review the message below."
+                        print "Config did not save, please review the message below."
                         print save_config.data_json(pretty=True)
                 else:
                     print "Group not found. Please verify the group name:"
